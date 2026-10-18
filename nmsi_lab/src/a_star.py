@@ -3,6 +3,7 @@
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import OccupancyGrid, Path
 import rclpy
+import math
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from rclpy.time import Time
@@ -68,6 +69,15 @@ class AStarCalculator(Node):
         calculated_path.poses.append(start)
         calculated_path.poses.append(end)
         self.publisher.publish(calculated_path)
+
+    def meter_conversion (self, PosX, PosY):
+        Ox = self.map_dilated.info.origin.position.x
+
+
+        return ix, iy
+
+    
+    
 
 
 def main(args=None) -> None:
