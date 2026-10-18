@@ -3,6 +3,7 @@
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import OccupancyGrid, Path
 import rclpy
+import math
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from rclpy.time import Time
@@ -68,6 +69,42 @@ class AStarCalculator(Node):
         calculated_path.poses.append(start)
         calculated_path.poses.append(end)
         self.publisher.publish(calculated_path)
+
+    def index_conversion (self, PosX, PosY):
+        Ox = self.map_dilated.info.origin.position.x
+        Oy = self.map_dilated.info.origin.position.y
+        r = self.map_dilated.info.resolution
+
+        ix = math.floor((PosX - Ox)/r)
+        iy = math.floor((PosY - Oy)/r)
+
+        idx = iy * self.map_dilated.info.width
+
+        return ix, iy
+
+    def meter_conversion(self, ix, iy):
+        Ox = self.map_dilated.info.origin.position.x
+        Oy = self.map_dilated.info.origin.position.y
+        r = self.map_dilated.info.resolution
+
+        x = Ox + (ix + 0.5) * r
+        y = Oy + (iy + 0.5) * r
+
+        return x, y
+
+    def inside_map (self, PosX, PosY):
+        
+        Ox = self.map_dilated.info.origin.position.x
+        X_limit = Ox + self.map_dilated.info.width
+
+        Oy = self.map_dilated.info.origin.position.y
+        Y_limit = Oy + self.map_dilated.info.hight
+
+        if((Ox > PosX > X_limit) or(Oy > PosY > Y_limit)):
+
+
+    
+    
 
 
 def main(args=None) -> None:
