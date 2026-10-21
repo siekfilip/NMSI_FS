@@ -4,6 +4,7 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import OccupancyGrid, Path
 import rclpy
 import math
+from queue import PriorityQueue
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from rclpy.time import Time
@@ -70,14 +71,6 @@ class AStarCalculator(Node):
         calculated_path.poses.append(end)
         self.publisher.publish(calculated_path)
 
-<<<<<<< HEAD
-    def meter_conversion (self, PosX, PosY):
-        Ox = self.map_dilated.info.origin.position.x
-
-
-        return ix, iy
-
-=======
     def index_conversion (self, PosX, PosY):
         Ox = self.map_dilated.info.origin.position.x
         Oy = self.map_dilated.info.origin.position.y
@@ -86,7 +79,7 @@ class AStarCalculator(Node):
         ix = math.floor((PosX - Ox)/r)
         iy = math.floor((PosY - Oy)/r)
 
-        idx = iy * self.map_dilated.info.width
+        #idx = iy * self.map_dilated.info.width + ix
 
         return ix, iy
 
@@ -106,12 +99,107 @@ class AStarCalculator(Node):
         X_limit = Ox + self.map_dilated.info.width
 
         Oy = self.map_dilated.info.origin.position.y
-        Y_limit = Oy + self.map_dilated.info.hight
+        Y_limit = Oy + self.map_dilated.info.height
 
-        if((Ox > PosX > X_limit) or(Oy > PosY > Y_limit)):
+        
+        if(not (Ox <= PosX <= X_limit) or not (Oy <= PosY <= Y_limit)):
+            print("Outside the Map!")
+            return False
+        else:
+            print("Inside the Map!")
+            return True
+
+    def heuristic(self, current, target):
+        r = self.map_dilated.info.resolution
+
+        diff_x = (current[0] - target[0]) * r
+        diff_y = (current[1] - target[1]) * r
+
+        return math.sqrt(diff_x * diff_x + diff_y * diff_y)
+
+    def new_neighbour4(self, Pos):
+        x_cord = Pos[0]
+        y_cord = Pos[1]
+
+        neighbour1 = [x_cord, y_cord + 1]
+        neighbour2 = [x_cord + 1, y_cord]
+        neighbour3 = [x_cord, y_cord - 1]
+        neighbour4 = [x_cord - 1, y_cord]
+
+        #potencjalnie check inside map
+
+        neighbours = [neighbour1, neighbour2, neighbour3, neighbour4]
+
+        return neighbours
 
 
->>>>>>> 404ea43d9128c9472ca65a25a0b6ac4f97b868f0
+    def reconstruct_Path(self, visited_from, currentNode):
+        path = [currentNode]
+        while(currentNode in visited_from):
+            currentNode = visited_from[currentNode]
+            path.insert(0, currentNode) 
+        return path
+
+
+    def PathFind(self, startPosX, startPosY, targetPosX, targetPosY):
+        
+        startNode = startPosX, startPosY
+        targetNode = targetPosX, targetPosY
+        currentNode = startNode
+
+        move_cost = 10
+
+        h_cost = self.heuristic
+        g_cost = {}
+
+        visited = {}
+
+        visited_from = {}
+        g_cost[startNode] = 0
+
+        g_cost.append(self.new_neighbour4())
+
+        Open = {}
+        Open[startNode] = g_cost[startNode] + h_cost(startNode, targetNode)
+
+        while(not Open):
+            neighbours = self.new_neighbour4(currentNode)
+            f_min = 100000
+
+            for cord in Open.keys:
+                if(Open[cord] < f_min):
+                    f_min = Open[cord]
+                    currentNode = cord
+
+            Open.pop(currentNode)
+            if(currentNode == targetNode):
+                return self.reconstruct_Path #TO DO funkcja rekonstrukcji drogi przebytej
+
+            visited.add(currentNode)
+
+            
+
+            for neighbour in neighbours:
+                if(neighbour in visited):
+                    continue
+                temp_g = g_cost[currentNode] + move_cost
+                if(neighbour not in g_cost or temp_g < g_cost[neighbour]):
+                    visited_from[neighbour] = currentNode
+                    g_cost[neighbour] = temp_g
+                    Open[neighbour] = g_cost[neighbour] + h_cost(neighbour)
+
+        return False 
+
+
+
+            
+
+            
+
+
+
+
+
     
     
 
