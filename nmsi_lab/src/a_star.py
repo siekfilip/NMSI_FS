@@ -68,6 +68,8 @@ class AStarCalculator(Node):
         calculated_path.header.frame_id = 'map'
         calculated_path.header.stamp = self.get_clock().now().to_msg()
         calculated_path.poses.append(start)
+        self.PathFind(start.pose.position.x,start.pose.position.y, end.pose.position.x, end.pose.position.y)
+
         calculated_path.poses.append(end)
         self.publisher.publish(calculated_path)
 
@@ -93,7 +95,7 @@ class AStarCalculator(Node):
 
         return x, y
 
-    def inside_map (self, PosX, PosY):
+    def inside_map (self, Pos):
         
         Ox = self.map_dilated.info.origin.position.x
         X_limit = Ox + self.map_dilated.info.width
@@ -102,7 +104,7 @@ class AStarCalculator(Node):
         Y_limit = Oy + self.map_dilated.info.height
 
         
-        if(not (Ox <= PosX <= X_limit) or not (Oy <= PosY <= Y_limit)):
+        if(not (Ox <= Pos[0] and Pos[0] <= X_limit) or not (Oy <= Pos[1] and Pos[1] <= Y_limit)):
             print("Outside the Map!")
             return False
         else:
@@ -147,7 +149,7 @@ class AStarCalculator(Node):
         targetNode = targetPosX, targetPosY
         currentNode = startNode
 
-        move_cost = 10
+        neighbours = self.new_neighbour4(startNode)
 
         h_cost = self.heuristic
         g_cost = {}
@@ -157,23 +159,32 @@ class AStarCalculator(Node):
         visited_from = {}
         g_cost[startNode] = 0
 
-        g_cost.append(self.new_neighbour4())
+        g_cost.update(self.new_neighbour4(startNode))
+        #handling sasiada poza mapą
+        for cord in g_cost.keys():
+            if(self.inside_map([cord])):
+                continue
+            else:
+                g_cost.pop(cord)
+
+        move_cost_straigth = self.heuristic(startNode, neighbours[1])
+        move_cost_diagonal = self.heuristic(startNode, neighbour[0])
 
         Open = {}
         Open[startNode] = g_cost[startNode] + h_cost(startNode, targetNode)
 
         while(not Open):
             neighbours = self.new_neighbour4(currentNode)
-            f_min = 100000
+            f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
 
-            for cord in Open.keys:
+            for cord in Open.keys():
                 if(Open[cord] < f_min):
                     f_min = Open[cord]
                     currentNode = cord
 
             Open.pop(currentNode)
             if(currentNode == targetNode):
-                return self.reconstruct_Path #TO DO funkcja rekonstrukcji drogi przebytej
+                return self.reconstruct_Path(visited_from, currentNode) #TO DO funkcja rekonstrukcji drogi przebytej
 
             visited.add(currentNode)
 
@@ -182,7 +193,7 @@ class AStarCalculator(Node):
             for neighbour in neighbours:
                 if(neighbour in visited):
                     continue
-                temp_g = g_cost[currentNode] + move_cost
+                temp_g = g_cost[currentNode] + move_cost_straigth
                 if(neighbour not in g_cost or temp_g < g_cost[neighbour]):
                     visited_from[neighbour] = currentNode
                     g_cost[neighbour] = temp_g
@@ -207,6 +218,10 @@ class AStarCalculator(Node):
 def main(args=None) -> None:
     rclpy.init(args=args)
     node = AStarCalculator()
+
+    StartNode = [0, 0]
+    TargetNode = [20, 20]
+
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
