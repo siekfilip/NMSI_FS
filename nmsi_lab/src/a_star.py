@@ -96,6 +96,9 @@ class AStarCalculator(Node):
         return x, y
 
     def inside_map (self, Pos):
+
+        Posx = Pos[0]
+        Posy = Pos[1]
         
         Ox = self.map_dilated.info.origin.position.x
         X_limit = Ox + self.map_dilated.info.width
@@ -104,7 +107,7 @@ class AStarCalculator(Node):
         Y_limit = Oy + self.map_dilated.info.height
 
         
-        if(not (Ox <= Pos[0] and Pos[0] <= X_limit) or not (Oy <= Pos[1] and Pos[1] <= Y_limit)):
+        if(not (Ox <= Posx and Posx <= X_limit) or not (Oy <= Posy and Posy <= Y_limit)):
             print("Outside the Map!")
             return False
         else:
