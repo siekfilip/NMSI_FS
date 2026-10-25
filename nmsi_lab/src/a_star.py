@@ -126,14 +126,34 @@ class AStarCalculator(Node):
         x_cord = Pos[0]
         y_cord = Pos[1]
 
-        neighbour1 = [x_cord, y_cord + 1]
-        neighbour2 = [x_cord + 1, y_cord]
-        neighbour3 = [x_cord, y_cord - 1]
-        neighbour4 = [x_cord - 1, y_cord]
+        neighbour1 = x_cord, y_cord + 1
+        neighbour2 = x_cord + 1, y_cord
+        neighbour3 = x_cord, y_cord - 1
+        neighbour4 = x_cord - 1, y_cord
 
         #potencjalnie check inside map
 
         neighbours = [neighbour1, neighbour2, neighbour3, neighbour4]
+
+        return neighbours
+    
+    def new_neighbour8(self, Pos):
+        x_cord = Pos[0]
+        y_cord = Pos[1] 
+
+        is_straight = True #pierwszy neighbour jest Diagonal
+
+        neighbours = []
+
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                is_straight = not is_straight #flipowanie wartości
+                if(i == 0 and j == 0):                    
+                    continue
+                neighbour = x_cord + j, y_cord + i, is_straight
+                neighbours.append(neighbour)
+
+
 
         return neighbours
 
@@ -142,7 +162,7 @@ class AStarCalculator(Node):
         path = [currentNode]
         while(currentNode in visited_from):
             currentNode = visited_from[currentNode]
-            path.insert(0, currentNode) 
+            path.insert(0, currentNode) #convert_meter currentNode TO DO potencjalnie
         return path
 
 
@@ -162,7 +182,7 @@ class AStarCalculator(Node):
         visited_from = {}
         g_cost[startNode] = 0
 
-        g_cost.update(self.new_neighbour4(startNode))
+        #g_cost.update(self.new_neighbour4(startNode))
         #handling sasiada poza mapą
         for cord in g_cost.keys():
             if(self.inside_map([cord])):
@@ -170,12 +190,14 @@ class AStarCalculator(Node):
             else:
                 g_cost.pop(cord)
 
-        move_cost_straigth = self.heuristic(startNode, neighbours[1])
-        move_cost_diagonal = self.heuristic(startNode, neighbour[0])
+        move_cost_straigth = self.heuristic(startNode, neighbours[1][:2])
+        move_cost_diagonal = self.heuristic(startNode, neighbours[0][:2])
 
         Open = {}
         Open[startNode] = g_cost[startNode] + h_cost(startNode, targetNode)
 
+        #vvvvv 4 sasiadow while loop
+        """
         while(not Open):
             neighbours = self.new_neighbour4(currentNode)
             f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
@@ -201,6 +223,44 @@ class AStarCalculator(Node):
                     visited_from[neighbour] = currentNode
                     g_cost[neighbour] = temp_g
                     Open[neighbour] = g_cost[neighbour] + h_cost(neighbour)
+        """
+
+        #while loop na 8 neighbourów
+        g_cost.update(self.new_neighbour8(startNode))
+
+        while(not Open):
+            neighbours = self.new_neighbour8(currentNode)
+            f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
+
+            for cord in Open.keys():
+                if(Open[cord] < f_min):
+                    f_min = Open[cord]
+                    currentNode = cord
+
+            Open.pop(currentNode)
+            if(currentNode == targetNode):
+                return self.reconstruct_Path(visited_from, currentNode) #TO DO funkcja rekonstrukcji drogi przebytej
+
+            visited.add(currentNode)
+
+            
+
+            for neighbour in neighbours:
+                neighbour_cord = neighbour[:2]
+                is_straight = neighbour[2]
+                if(neighbour[:2] in visited):
+                    continue
+                if(neighbour[2] == True):
+                    move_cost = self.heuristic(startNode, neighbours[1][:2]) #straight
+                else:
+                    move_cost = self.heuristic(startNode, neighbours[0][:2]) #diagonal
+                
+                temp_g = g_cost[currentNode] + move_cost
+                if(neighbour_cord not in g_cost or temp_g < g_cost[neighbour_cord]):
+                    visited_from[neighbour_cord] = currentNode
+                    g_cost[neighbour_cord] = temp_g
+                    Open[neighbour_cord] = g_cost[neighbour_cord] + h_cost(neighbour_cord)
+
 
         return False 
 
