@@ -112,7 +112,7 @@ class AStarCalculator(Node):
         #Posx = Pos[0]
         #Posy = Pos[1]
 
-        (Posx, Posy) = Pos[0]
+        (Posx, Posy) = Pos
         
         Ox = self.map_dilated.info.origin.position.x
         X_limit = Ox + self.map_dilated.info.width
@@ -149,6 +149,17 @@ class AStarCalculator(Node):
 
         neighbours = [neighbour1, neighbour2, neighbour3, neighbour4]
 
+        for neighbour in neighbours:
+            self.get_logger().info(
+                        f'neighbour_iter: {neighbour}')
+            if(self.inside_map(neighbour)):
+                continue
+            else:
+                neighbours.pop(neighbour)
+
+        self.get_logger().info(
+                        f'complete Neighbours: {neighbours}')
+
         return neighbours
     
     def new_neighbour8(self, Pos):
@@ -177,7 +188,7 @@ class AStarCalculator(Node):
         while(currentNode in visited_from):
             currentNode = visited_from[currentNode]
             convert_meter(currentNode)
-            path.insert(0, currentNode) #convert_meter currentNode TO DO potencjalnie
+            self.calculated_path.insert(0, currentNode) #convert_meter currentNode TO DO potencjalnie
             
         return self.calculated_path
 
@@ -198,9 +209,8 @@ class AStarCalculator(Node):
         visited_from = {}
         g_cost[startNode] = 0
 
-        # g_cost.update(self.new_neighbour4(startNode))
         #handling sasiada poza mapą
-
+        '''
         self.get_logger().info(f"Sasiedzi {neighbours}")
         
         for cord in g_cost.keys():
@@ -210,7 +220,7 @@ class AStarCalculator(Node):
                 continue
             else:
                 g_cost.pop(cord)
-
+        '''
         move_cost_straigth = self.heuristic(startNode, neighbours[1][:2])
         move_cost_diagonal = self.heuristic(startNode, neighbours[0][:2])
 
