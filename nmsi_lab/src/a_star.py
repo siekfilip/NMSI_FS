@@ -64,14 +64,24 @@ class AStarCalculator(Node):
         self.map_cost = map_msg
 
     def a_star(self, start: PoseStamped, end: PoseStamped) -> None:
-        calculated_path = Path()
-        calculated_path.header.frame_id = 'map'
-        calculated_path.header.stamp = self.get_clock().now().to_msg()
-        calculated_path.poses.append(start)
-        self.PathFind(start.pose.position.x,start.pose.position.y, end.pose.position.x, end.pose.position.y)
+        self.calculated_path = Path()
+        self.calculated_path.header.frame_id = 'map'
+        self.calculated_path.header.stamp = self.get_clock().now().to_msg()
+        self.calculated_path.poses.append(start)
 
-        calculated_path.poses.append(end)
-        self.publisher.publish(calculated_path)
+        start_pos = self.index_conversion(start.pose.position.x, start.pose.position.y)
+        end_pos = self.index_conversion(end.pose.position.x, end.pose.position.y)
+
+        
+
+        self.PathFind(start_pos[0], start_pos[1], end_pos[0], end_pos[1])
+
+        self.get_logger().info(
+                        f'start_pos: {start_pos} end: {end_pos}'
+                        f'Calculated path: {self.calculated_path.poses}')
+        
+        self.calculated_path.poses.append(end)
+        self.publisher.publish(self.calculated_path)
 
     def index_conversion (self, PosX, PosY):
         Ox = self.map_dilated.info.origin.position.x
@@ -96,9 +106,13 @@ class AStarCalculator(Node):
         return x, y
 
     def inside_map (self, Pos):
+        self.get_logger().info(
+                        f'Pos_inside: {Pos}')
 
-        Posx = Pos[0]
-        Posy = Pos[1]
+        #Posx = Pos[0]
+        #Posy = Pos[1]
+
+        (Posx, Posy) = Pos[0]
         
         Ox = self.map_dilated.info.origin.position.x
         X_limit = Ox + self.map_dilated.info.width
@@ -108,10 +122,10 @@ class AStarCalculator(Node):
 
         
         if(not (Ox <= Posx and Posx <= X_limit) or not (Oy <= Posy and Posy <= Y_limit)):
-            print("Outside the Map!")
+            #print("Outside the Map!")
             return False
         else:
-            print("Inside the Map!")
+            #print("Inside the Map!")
             return True
 
     def heuristic(self, current, target):
@@ -159,11 +173,13 @@ class AStarCalculator(Node):
 
 
     def reconstruct_Path(self, visited_from, currentNode):
-        path = [currentNode]
+        self.calculated_path = [currentNode]
         while(currentNode in visited_from):
             currentNode = visited_from[currentNode]
+            convert_meter(currentNode)
             path.insert(0, currentNode) #convert_meter currentNode TO DO potencjalnie
-        return path
+            
+        return self.calculated_path
 
 
     def PathFind(self, startPosX, startPosY, targetPosX, targetPosY):
@@ -182,9 +198,14 @@ class AStarCalculator(Node):
         visited_from = {}
         g_cost[startNode] = 0
 
-        #g_cost.update(self.new_neighbour4(startNode))
+        # g_cost.update(self.new_neighbour4(startNode))
         #handling sasiada poza mapą
+
+        self.get_logger().info(f"Sasiedzi {neighbours}")
+        
         for cord in g_cost.keys():
+            self.get_logger().info(
+                        f'cordPath: {cord}')
             if(self.inside_map([cord])):
                 continue
             else:
@@ -197,7 +218,7 @@ class AStarCalculator(Node):
         Open[startNode] = g_cost[startNode] + h_cost(startNode, targetNode)
 
         #vvvvv 4 sasiadow while loop
-        """
+        
         while(not Open):
             neighbours = self.new_neighbour4(currentNode)
             f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
@@ -223,9 +244,10 @@ class AStarCalculator(Node):
                     visited_from[neighbour] = currentNode
                     g_cost[neighbour] = temp_g
                     Open[neighbour] = g_cost[neighbour] + h_cost(neighbour)
-        """
+        
 
         #while loop na 8 neighbourów
+        """
         g_cost.update(self.new_neighbour8(startNode))
 
         while(not Open):
@@ -263,6 +285,7 @@ class AStarCalculator(Node):
 
 
         return False 
+        """
 
 
 
