@@ -11,6 +11,7 @@ from rclpy.time import Time
 from tf2_ros import Buffer, TransformException, TransformListener
 
 
+
 class AStarCalculator(Node):
     def __init__(self) -> None:
         super().__init__('a_star')
@@ -67,21 +68,36 @@ class AStarCalculator(Node):
         self.calculated_path = Path()
         self.calculated_path.header.frame_id = 'map'
         self.calculated_path.header.stamp = self.get_clock().now().to_msg()
-        self.calculated_path.poses.append(start)
+
+        
 
         start_pos = self.index_conversion(start.pose.position.x, start.pose.position.y)
         end_pos = self.index_conversion(end.pose.position.x, end.pose.position.y)
 
-        
 
-        self.PathFind(start_pos[0], start_pos[1], end_pos[0], end_pos[1])
+        # if(self.inside_map((end.pose.position.x, end.pose.position.y))):
+        #     self.get_logger().info(
+        #                             f'OUTSIDE THE MAP')
+        #     return 67
+
+        #self.calculated_path.poses.append(start)
+
+        self.PathFind(start_pos[0], start_pos[1], end_pos[0], end_pos[1], self.calculated_path)
 
         self.get_logger().info(
                         f'start_pos: {start_pos} end: {end_pos}'
                         f'Calculated path: {self.calculated_path.poses}')
         
-        self.calculated_path.poses.append(end)
-        self.publisher.publish(self.calculated_path)
+        #self.calculated_path.poses.append(end)
+        # self.calculated_path = Path()
+        # self.calculated_path.header.frame_id = 'map'
+        # self.calculated_path.header.stamp = self.get_clock().now().to_msg()
+        # self.calculated_path.poses.append(start)
+        # self.calculated_path.poses.append(end)
+        # self.get_logger().info(
+        #                         f'start_pos: {start_pos} end: {end_pos}'
+        #                         f'Calculated path: {self.calculated_path.poses}')
+        self.publisher.publish(self.calculated_path) # coś nie działa
 
     def index_conversion (self, PosX, PosY):
         Ox = self.map_dilated.info.origin.position.x
@@ -90,8 +106,6 @@ class AStarCalculator(Node):
 
         ix = math.floor((PosX - Ox)/r)
         iy = math.floor((PosY - Oy)/r)
-
-        #idx = iy * self.map_dilated.info.width + ix
 
         return ix, iy
 
@@ -106,11 +120,6 @@ class AStarCalculator(Node):
         return x, y
 
     def inside_map (self, Pos):
-        self.get_logger().info(
-                        f'Pos_inside: {Pos}')
-
-        #Posx = Pos[0]
-        #Posy = Pos[1]
 
         (Posx, Posy) = Pos
         
@@ -128,6 +137,15 @@ class AStarCalculator(Node):
             #print("Inside the Map!")
             return True
 
+    def is_obstacle(self, Pos):
+        (x, y) = Pos
+
+        width = self.map_dilated.info.width
+
+        idx = y * width + x
+
+        return self.map_dilated.data[idx] == 100
+
     def heuristic(self, current, target):
         r = self.map_dilated.info.resolution
 
@@ -140,25 +158,18 @@ class AStarCalculator(Node):
         x_cord = Pos[0]
         y_cord = Pos[1]
 
+        neighbours = []
+
         neighbour1 = x_cord, y_cord + 1
         neighbour2 = x_cord + 1, y_cord
         neighbour3 = x_cord, y_cord - 1
         neighbour4 = x_cord - 1, y_cord
 
-        #potencjalnie check inside map
+        candidates = [neighbour1, neighbour2, neighbour3, neighbour4]
 
-        neighbours = [neighbour1, neighbour2, neighbour3, neighbour4]
-
-        for neighbour in neighbours:
-            self.get_logger().info(
-                        f'neighbour_iter: {neighbour}')
+        for neighbour in candidates:
             if(self.inside_map(neighbour)):
-                continue
-            else:
-                neighbours.pop(neighbour)
-
-        self.get_logger().info(
-                        f'complete Neighbours: {neighbours}')
+                neighbours.append(neighbour)
 
         return neighbours
     
@@ -183,119 +194,138 @@ class AStarCalculator(Node):
         return neighbours
 
 
-    def reconstruct_Path(self, visited_from, currentNode):
-        self.calculated_path = [currentNode]
+    def reconstruct_Path(self, visited_from, currentNode, calculated_path):
+       
         while(currentNode in visited_from):
+            trans = self.tf_buffer.lookup_transform(
+                self.fixed_frame, self.robot_frame, Time())
+            pose = PoseStamped()
+            pose.header.frame_id = 'map'
+            pose.header.stamp = self.get_clock().now().to_msg()
+            (x, y) = self.meter_conversion(currentNode[0], currentNode[1])
+
+            pose.pose.position.x = x
+            pose.pose.position.y = y
+            pose.pose.position.z = 0.0
+            pose.pose.orientation = trans.transform.rotation
+            calculated_path.poses.insert(0, pose) 
             currentNode = visited_from[currentNode]
-            convert_meter(currentNode)
-            self.calculated_path.insert(0, currentNode) #convert_meter currentNode TO DO potencjalnie
-            
-        return self.calculated_path
+        
+        
+        trans = self.tf_buffer.lookup_transform(
+                self.fixed_frame, self.robot_frame, Time())
+        pose = PoseStamped()
+        pose.header.frame_id = 'map'
+        pose.header.stamp = self.get_clock().now().to_msg()
+        (x, y) = self.meter_conversion(currentNode[0], currentNode[1])
+
+        pose.pose.position.x = x
+        pose.pose.position.y = y
+        pose.pose.position.z = 0.0
+        pose.pose.orientation = trans.transform.rotation
+        
+        calculated_path.poses.insert(0, pose) 
+        return calculated_path.poses
 
 
-    def PathFind(self, startPosX, startPosY, targetPosX, targetPosY):
+    def PathFind(self, startPosX, startPosY, targetPosX, targetPosY, calculated_path):
         
         startNode = startPosX, startPosY
         targetNode = targetPosX, targetPosY
         currentNode = startNode
 
-        neighbours = self.new_neighbour4(startNode)
+        mode = 8 # 4 - 4 sąsiadów // 8 - 8 sąsiadów 
+
+        
 
         h_cost = self.heuristic
         g_cost = {}
 
-        visited = {}
+        visited = set()
 
         visited_from = {}
         g_cost[startNode] = 0
 
-        #handling sasiada poza mapą
-        '''
-        self.get_logger().info(f"Sasiedzi {neighbours}")
-        
-        for cord in g_cost.keys():
-            self.get_logger().info(
-                        f'cordPath: {cord}')
-            if(self.inside_map([cord])):
-                continue
-            else:
-                g_cost.pop(cord)
-        '''
-        move_cost_straigth = self.heuristic(startNode, neighbours[1][:2])
-        move_cost_diagonal = self.heuristic(startNode, neighbours[0][:2])
+
+        #move_cost_diagonal = self.heuristic(startNode, neighbours[0][:2])
 
         Open = {}
         Open[startNode] = g_cost[startNode] + h_cost(startNode, targetNode)
 
         #vvvvv 4 sasiadow while loop
-        
-        while(not Open):
-            neighbours = self.new_neighbour4(currentNode)
-            f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
+        if(mode == 4):
+            neighbours = self.new_neighbour4(startNode)
+            move_cost_straigth = self.heuristic(startNode, neighbours[1][:2])
+            while(Open):        
 
-            for cord in Open.keys():
-                if(Open[cord] < f_min):
-                    f_min = Open[cord]
-                    currentNode = cord
+                f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open
 
-            Open.pop(currentNode)
-            if(currentNode == targetNode):
-                return self.reconstruct_Path(visited_from, currentNode) #TO DO funkcja rekonstrukcji drogi przebytej
+                for cord in Open.keys():
+                    if(Open[cord] < f_min):
+                        f_min = Open[cord]
+                        currentNode = cord
 
-            visited.add(currentNode)
+                Open.pop(currentNode)
+                if(currentNode == targetNode):
+                    return self.reconstruct_Path(visited_from, currentNode, calculated_path) 
 
-            
+                visited.add(currentNode)
+                
+                neighbours = self.new_neighbour4(currentNode)
 
-            for neighbour in neighbours:
-                if(neighbour in visited):
-                    continue
-                temp_g = g_cost[currentNode] + move_cost_straigth
-                if(neighbour not in g_cost or temp_g < g_cost[neighbour]):
-                    visited_from[neighbour] = currentNode
-                    g_cost[neighbour] = temp_g
-                    Open[neighbour] = g_cost[neighbour] + h_cost(neighbour)
+                for neighbour in neighbours:
+                    if(neighbour in visited or self.is_obstacle(neighbour)):
+                        continue
+                    temp_g = g_cost[currentNode] + move_cost_straigth
+                    if(neighbour not in g_cost or temp_g < g_cost[neighbour]):
+                        visited_from[neighbour] = currentNode
+                        g_cost[neighbour] = temp_g
+                        Open[neighbour] = g_cost[neighbour] + h_cost(currentNode, neighbour)
         
 
         #while loop na 8 neighbourów
-        """
-        g_cost.update(self.new_neighbour8(startNode))
-
-        while(not Open):
-            neighbours = self.new_neighbour8(currentNode)
-            f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
-
-            for cord in Open.keys():
-                if(Open[cord] < f_min):
-                    f_min = Open[cord]
-                    currentNode = cord
-
-            Open.pop(currentNode)
-            if(currentNode == targetNode):
-                return self.reconstruct_Path(visited_from, currentNode) #TO DO funkcja rekonstrukcji drogi przebytej
-
-            visited.add(currentNode)
-
-            
-
-            for neighbour in neighbours:
-                neighbour_cord = neighbour[:2]
-                is_straight = neighbour[2]
-                if(neighbour[:2] in visited):
-                    continue
-                if(neighbour[2] == True):
-                    move_cost = self.heuristic(startNode, neighbours[1][:2]) #straight
-                else:
-                    move_cost = self.heuristic(startNode, neighbours[0][:2]) #diagonal
+        if(mode == 8):
+            # g_cost.update({
+            #     (x, y): 
+            #     for x, y, _ in self.new_neighbour8(startNode)
+            # })
+            neighbours = self.new_neighbour8(startNode)
+            while(Open):
                 
-                temp_g = g_cost[currentNode] + move_cost
-                if(neighbour_cord not in g_cost or temp_g < g_cost[neighbour_cord]):
-                    visited_from[neighbour_cord] = currentNode
-                    g_cost[neighbour_cord] = temp_g
-                    Open[neighbour_cord] = g_cost[neighbour_cord] + h_cost(neighbour_cord)
+                f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
+
+                for cord in Open.keys():
+                    if(Open[cord] < f_min):
+                        f_min = Open[cord]
+                        currentNode = cord
+
+                Open.pop(currentNode)
+                if(currentNode == targetNode):
+                    return self.reconstruct_Path(visited_from, currentNode, calculated_path) #TO DO funkcja rekonstrukcji drogi przebytej
+
+                visited.add(currentNode)
+
+                neighbours = self.new_neighbour8(currentNode)
+
+                for neighbour in neighbours:
+                    neighbour_cord = neighbour[:2]
+                    is_straight = neighbour[2]
+                    if(neighbour[:2] in visited or self.is_obstacle(neighbour[:2])):
+                        continue
+                    if(neighbour[2] == True):
+                        move_cost = self.heuristic(currentNode, neighbours[1][:2]) #straight
+                    else:
+                        move_cost = self.heuristic(currentNode, neighbours[0][:2]) #diagonal
+                    
+                    temp_g = g_cost[currentNode] + move_cost
+                    if(neighbour_cord not in g_cost or temp_g < g_cost[neighbour_cord]):
+                        visited_from[neighbour_cord] = currentNode
+                        g_cost[neighbour_cord] = temp_g
+                        Open[neighbour_cord] = g_cost[neighbour_cord] + h_cost(currentNode, neighbour_cord)
 
 
         return False 
-        """
+        
 
 
 
@@ -312,6 +342,7 @@ class AStarCalculator(Node):
 
 
 def main(args=None) -> None:
+
     rclpy.init(args=args)
     node = AStarCalculator()
 
