@@ -74,11 +74,9 @@ class AStarCalculator(Node):
         start_pos = self.index_conversion(start.pose.position.x, start.pose.position.y)
         end_pos = self.index_conversion(end.pose.position.x, end.pose.position.y)
 
-
-        # if(self.inside_map((end.pose.position.x, end.pose.position.y))):
-        #     self.get_logger().info(
-        #                             f'OUTSIDE THE MAP')
-        #     return 67
+        if(not self.inside_map(end_pos)):
+            self.get_logger().info(f'OUTSIDE THE MAP')
+            return
 
         #self.calculated_path.poses.append(start)
 
@@ -184,12 +182,12 @@ class AStarCalculator(Node):
         for i in range(-1, 2):
             for j in range(-1, 2):
                 is_straight = not is_straight #flipowanie wartości
+                
                 if(i == 0 and j == 0):                    
                     continue
+
                 neighbour = x_cord + j, y_cord + i, is_straight
                 neighbours.append(neighbour)
-
-
 
         return neighbours
 
@@ -199,6 +197,7 @@ class AStarCalculator(Node):
         while(currentNode in visited_from):
             trans = self.tf_buffer.lookup_transform(
                 self.fixed_frame, self.robot_frame, Time())
+            
             pose = PoseStamped()
             pose.header.frame_id = 'map'
             pose.header.stamp = self.get_clock().now().to_msg()
@@ -208,10 +207,11 @@ class AStarCalculator(Node):
             pose.pose.position.y = y
             pose.pose.position.z = 0.0
             pose.pose.orientation = trans.transform.rotation
+
             calculated_path.poses.insert(0, pose) 
             currentNode = visited_from[currentNode]
         
-        
+        #+1 loop
         trans = self.tf_buffer.lookup_transform(
                 self.fixed_frame, self.robot_frame, Time())
         pose = PoseStamped()
@@ -234,9 +234,7 @@ class AStarCalculator(Node):
         targetNode = targetPosX, targetPosY
         currentNode = startNode
 
-        mode = 8 # 4 - 4 sąsiadów // 8 - 8 sąsiadów 
-
-        
+        mode = 8 # 4 - 4 sąsiadów // 8 - 8 sąsiadów       
 
         h_cost = self.heuristic
         g_cost = {}
@@ -246,16 +244,15 @@ class AStarCalculator(Node):
         visited_from = {}
         g_cost[startNode] = 0
 
-
-        #move_cost_diagonal = self.heuristic(startNode, neighbours[0][:2])
-
         Open = {}
         Open[startNode] = g_cost[startNode] + h_cost(startNode, targetNode)
 
         #vvvvv 4 sasiadow while loop
         if(mode == 4):
+            
             neighbours = self.new_neighbour4(startNode)
             move_cost_straigth = self.heuristic(startNode, neighbours[1][:2])
+
             while(Open):        
 
                 f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open
@@ -285,11 +282,9 @@ class AStarCalculator(Node):
 
         #while loop na 8 neighbourów
         if(mode == 8):
-            # g_cost.update({
-            #     (x, y): 
-            #     for x, y, _ in self.new_neighbour8(startNode)
-            # })
+
             neighbours = self.new_neighbour8(startNode)
+
             while(Open):
                 
                 f_min = 100000 #wartosc f z jakiegokolwiek wierzchołka w open 
@@ -308,16 +303,20 @@ class AStarCalculator(Node):
                 neighbours = self.new_neighbour8(currentNode)
 
                 for neighbour in neighbours:
+
                     neighbour_cord = neighbour[:2]
                     is_straight = neighbour[2]
+
                     if(neighbour[:2] in visited or self.is_obstacle(neighbour[:2])):
                         continue
-                    if(neighbour[2] == True):
+
+                    if(is_straight == True):
                         move_cost = self.heuristic(currentNode, neighbours[1][:2]) #straight
                     else:
                         move_cost = self.heuristic(currentNode, neighbours[0][:2]) #diagonal
                     
                     temp_g = g_cost[currentNode] + move_cost
+
                     if(neighbour_cord not in g_cost or temp_g < g_cost[neighbour_cord]):
                         visited_from[neighbour_cord] = currentNode
                         g_cost[neighbour_cord] = temp_g
