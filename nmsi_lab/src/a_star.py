@@ -69,6 +69,8 @@ class AStarCalculator(Node):
         self.calculated_path.header.frame_id = 'map'
         self.calculated_path.header.stamp = self.get_clock().now().to_msg()
 
+        self.k = 25
+
         
 
         start_pos = self.index_conversion(start.pose.position.x, start.pose.position.y)
@@ -128,7 +130,7 @@ class AStarCalculator(Node):
         Y_limit = Oy + self.map_dilated.info.height
 
         
-        if(not (Ox <= Posx and Posx <= X_limit) or not (Oy <= Posy and Posy <= Y_limit)):
+        if(not (Ox <= Posx and Posx < X_limit) or not (Oy <= Posy and Posy < Y_limit)):
             #print("Outside the Map!")
             return False
         else:
@@ -142,7 +144,15 @@ class AStarCalculator(Node):
 
         idx = y * width + x
 
-        return self.map_dilated.data[idx] == 100
+        # self.get_logger().info(f'x: {x} ' f'y: {y} ' f'idx: {idx} '
+        #                        f'length: {len(self.map_dilated.data)}'
+        #                     f'map dialated range: {self.map_dilated.info.width} --- {self.map_dilated.info.height}')
+        try:
+            return self.map_dilated.data[idx] == 100
+        except IndexError:
+             self.get_logger().info(f'x: {x} ' f'y: {y} ' f'idx: {idx} '
+                                f'length: {len(self.map_dilated.data)}'
+                            f'map dialated range: {self.map_dilated.info.width} --- {self.map_dilated.info.height}')
 
     def heuristic(self, current, target):
         r = self.map_dilated.info.resolution
@@ -151,6 +161,10 @@ class AStarCalculator(Node):
         diff_y = (current[1] - target[1]) * r
 
         return math.sqrt(diff_x * diff_x + diff_y * diff_y)
+
+    def map_cost_calc(self, map_cost, k):
+
+        return 1 + k * (map_cost/100)
 
     def new_neighbour4(self, Pos):
         x_cord = Pos[0]
@@ -233,6 +247,7 @@ class AStarCalculator(Node):
         startNode = startPosX, startPosY
         targetNode = targetPosX, targetPosY
         currentNode = startNode
+        k = 25
 
         mode = 8 # 4 - 4 sąsiadów // 8 - 8 sąsiadów       
 
@@ -246,6 +261,8 @@ class AStarCalculator(Node):
 
         Open = {}
         Open[startNode] = g_cost[startNode] + h_cost(startNode, targetNode)
+
+        map_cost = self.map_cost.data
 
         #vvvvv 4 sasiadow while loop
         if(mode == 4):
@@ -273,7 +290,10 @@ class AStarCalculator(Node):
                 for neighbour in neighbours:
                     if(neighbour in visited or self.is_obstacle(neighbour)):
                         continue
-                    temp_g = g_cost[currentNode] + move_cost_straigth
+
+                    current_idx = currentNode[1] * self.map_dilated.info.width + currentNode[0]
+                    temp_g = g_cost[currentNode] + move_cost_straigth + self.map_cost_calc(map_cost[current_idx], k)
+
                     if(neighbour not in g_cost or temp_g < g_cost[neighbour]):
                         visited_from[neighbour] = currentNode
                         g_cost[neighbour] = temp_g
@@ -314,8 +334,9 @@ class AStarCalculator(Node):
                         move_cost = self.heuristic(currentNode, neighbours[1][:2]) #straight
                     else:
                         move_cost = self.heuristic(currentNode, neighbours[0][:2]) #diagonal
-                    
-                    temp_g = g_cost[currentNode] + move_cost
+
+                    current_idx = currentNode[1] * self.map_dilated.info.width + currentNode[0]
+                    temp_g = g_cost[currentNode] + move_cost + self.map_cost_calc(map_cost[current_idx], k)
 
                     if(neighbour_cord not in g_cost or temp_g < g_cost[neighbour_cord]):
                         visited_from[neighbour_cord] = currentNode
