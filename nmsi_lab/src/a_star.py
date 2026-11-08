@@ -81,7 +81,7 @@ class AStarCalculator(Node):
             return
 
         if(self.is_obstacle(end_pos)):
-            self.get_logger().info(f'INSIDE TH OBSTACLE')
+            self.get_logger().info(f'INSIDE THE OBSTACLE')
             return
 
         #self.calculated_path.poses.append(start)
@@ -300,7 +300,7 @@ class AStarCalculator(Node):
                     if(current_idx > 25000):
                         continue
                     try:
-                        temp_g = g_cost[currentNode] + move_cost + self.map_cost_calc(map_cost[current_idx], k)
+                        temp_g = g_cost[currentNode] + move_cost * self.map_cost_calc(map_cost[current_idx], k)
                     except IndexError:
                             self.get_logger().info(f'idx: {current_idx} '
                                             f'length: {len(map_cost)}'
@@ -349,7 +349,7 @@ class AStarCalculator(Node):
 
                     current_idx = currentNode[1] * self.map_dilated.info.width + currentNode[0]
                     try:
-                                temp_g = g_cost[currentNode] + move_cost + self.map_cost_calc(map_cost[current_idx], k)
+                                temp_g = g_cost[currentNode] + move_cost * self.map_cost_calc(map_cost[current_idx], k)
                     except IndexError:
                             self.get_logger().info(f'idx: {current_idx} '
                                             f'length: {len(map_cost)}'
