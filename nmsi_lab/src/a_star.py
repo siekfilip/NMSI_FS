@@ -80,13 +80,17 @@ class AStarCalculator(Node):
             self.get_logger().info(f'OUTSIDE THE MAP')
             return
 
+        if(self.is_obstacle(end_pos)):
+            self.get_logger().info(f'INSIDE TH OBSTACLE')
+            return
+
         #self.calculated_path.poses.append(start)
 
         self.PathFind(start_pos[0], start_pos[1], end_pos[0], end_pos[1], self.calculated_path)
 
-        self.get_logger().info(
-                        f'start_pos: {start_pos} end: {end_pos}'
-                        f'Calculated path: {self.calculated_path.poses}')
+        # self.get_logger().info(
+        #                 f'start_pos: {start_pos} end: {end_pos}'
+        #                 f'Calculated path: {self.calculated_path.poses}')
         
         #self.calculated_path.poses.append(end)
         # self.calculated_path = Path()
@@ -150,9 +154,10 @@ class AStarCalculator(Node):
         try:
             return self.map_dilated.data[idx] == 100
         except IndexError:
-             self.get_logger().info(f'x: {x} ' f'y: {y} ' f'idx: {idx} '
-                                f'length: {len(self.map_dilated.data)}'
-                            f'map dialated range: {self.map_dilated.info.width} --- {self.map_dilated.info.height}')
+            return True
+                # self.get_logger().info(f'x: {x} ' f'y: {y} ' f'idx: {idx} '
+                #                 f'length: {len(self.map_dilated.data)}'
+                #             f'map dialated range: {self.map_dilated.info.width} --- {self.map_dilated.info.height}')
 
     def heuristic(self, current, target):
         r = self.map_dilated.info.resolution
@@ -291,8 +296,15 @@ class AStarCalculator(Node):
                     if(neighbour in visited or self.is_obstacle(neighbour)):
                         continue
 
-                    current_idx = currentNode[1] * self.map_dilated.info.width + currentNode[0]
-                    temp_g = g_cost[currentNode] + move_cost_straigth + self.map_cost_calc(map_cost[current_idx], k)
+                    current_idx = currentNode[1] * self.map_cost.info.width + currentNode[0]
+                    if(current_idx > 25000):
+                        continue
+                    try:
+                        temp_g = g_cost[currentNode] + move_cost + self.map_cost_calc(map_cost[current_idx], k)
+                    except IndexError:
+                            self.get_logger().info(f'idx: {current_idx} '
+                                            f'length: {len(map_cost)}'
+                                        f'map dialated range: {self.map_cost.info.width} --- {self.map_cost.info.height}')
 
                     if(neighbour not in g_cost or temp_g < g_cost[neighbour]):
                         visited_from[neighbour] = currentNode
@@ -336,7 +348,13 @@ class AStarCalculator(Node):
                         move_cost = self.heuristic(currentNode, neighbours[0][:2]) #diagonal
 
                     current_idx = currentNode[1] * self.map_dilated.info.width + currentNode[0]
-                    temp_g = g_cost[currentNode] + move_cost + self.map_cost_calc(map_cost[current_idx], k)
+                    try:
+                                temp_g = g_cost[currentNode] + move_cost + self.map_cost_calc(map_cost[current_idx], k)
+                    except IndexError:
+                            self.get_logger().info(f'idx: {current_idx} '
+                                            f'length: {len(map_cost)}'
+                                        f'map dialated range: {self.map_cost.info.width} --- {self.map_cost.info.height}')
+                    
 
                     if(neighbour_cord not in g_cost or temp_g < g_cost[neighbour_cord]):
                         visited_from[neighbour_cord] = currentNode
@@ -344,7 +362,7 @@ class AStarCalculator(Node):
                         Open[neighbour_cord] = g_cost[neighbour_cord] + h_cost(currentNode, neighbour_cord)
 
 
-        return False 
+        return None 
         
 
 
