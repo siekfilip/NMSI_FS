@@ -318,7 +318,12 @@ class PathFollower(Node):
 
     # TODO 1: Zamień obserwację na dyskretny stan; nie używaj brakujących ani niefinitywnych wartości.
     def discretize_state(self, observation: list[float]) -> tuple[int, ...]:
-        return ()
+        discreet_state = []
+        for element in observation:
+            discreet_element = 100000 * element #jak to zdyskretyzować
+            discreet_state.append(discreet_element)
+        
+        return (discreet_state)
 
     # TODO 2: Wybierz akcję epsilon-zachłannie; poza uczeniem wybieraj najlepszą akcję.
     def choose_action(self, state: tuple[int, ...]) -> int:
