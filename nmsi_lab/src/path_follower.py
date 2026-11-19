@@ -48,6 +48,8 @@ class PathFollower(Node):
         self.robot_frame = 'base_link'
         self.head_radius = 0.4
         # TODO: dobierz liczbę akcji i utrzymaj zgodność tablicy Q oraz formatu pliku.
+
+        
         self.action_count = 5
         self.q_table: dict[tuple[int, ...], list[float]] = {}
         self.random = random.Random(random_seed)
@@ -316,6 +318,11 @@ class PathFollower(Node):
         self.get_logger().warning('Cannot find head point: path does not intersect the lookahead circle')
         return None
 
+
+
+
+
+
     # TODO 1: Zamień obserwację na dyskretny stan; nie używaj brakujących ani niefinitywnych wartości.
     def discretize_state(self, observation: list[float]) -> tuple[int, ...]:
         discreet_state = []
@@ -327,29 +334,41 @@ class PathFollower(Node):
 
     # TODO 2: Wybierz akcję epsilon-zachłannie; poza uczeniem wybieraj najlepszą akcję.
     def choose_action(self, state: tuple[int, ...]) -> int:
+
         return 0
 
     # TODO 3: Sprawdź numer akcji, zamień go na prędkości i opublikuj na /cmd_vel.
     def execute_action(self, action: int) -> None:
+
         pass
 
     # TODO 4: Zaktualizuj Q-tablicę, uwzględniając stan terminalny.
     def update_q_table(self, state: tuple[int, ...], action: int, reward: float,
                        next_state: tuple[int, ...], terminal: bool) -> None:
+
         pass
 
     # TODO 5 i 6: Zapisz i wczytaj Q-tablicę w tym samym formacie.
     # Brak lub pusty plik oznacza pustą tablicę; niepoprawne wiersze odrzucaj w całości.
     def save_q_table(self, filename: str) -> None:
+
         pass
 
     def load_q_table(self, filename: str) -> None:
+
         pass
 
     # TODO 7: Jeden krok uczenia. Obsłuż brak punktu trasy i wyjątki TF przed wyborem akcji.
     # Zakończ epizod za pomocą finish_episode("powód"); nie twórz pętli kroków.
     def learning_loop(self) -> None:
+
         pass
+
+
+
+
+
+
 
     def finish_episode(self, reason: str) -> None:
         self.get_logger().info(
